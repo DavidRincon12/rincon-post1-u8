@@ -6,6 +6,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -37,6 +39,9 @@ public final class HallazgoAuditoria {
     private Instant fechaCierre;
     private Long horasHastaCierre;
 
+    /** Cambios de estado aún no persistidos en la bitácora; el caso de uso los extrae al guardar. */
+    private final List<CambioEstado> cambiosPendientes = new ArrayList<>();
+
     private HallazgoAuditoria(HallazgoId id, String titulo, String descripcion, Severidad severidad,
                               EstadoHallazgo estado, PlanRemediacion planRemediacion,
                               String evidenciaRemediacion, String comentarioCierre,
@@ -62,12 +67,15 @@ public final class HallazgoAuditoria {
             throw new DatosInvalidosException("El campo 'severidad' es obligatorio");
         }
         Instant momento = requerirInstante(ahora);
-        return new HallazgoAuditoria(
+        HallazgoAuditoria nuevo = new HallazgoAuditoria(
                 HallazgoId.nuevo(),
                 Texto.requerir(titulo, "titulo", TITULO_MIN, TITULO_MAX),
                 Texto.requerir(descripcion, "descripcion", DESCRIPCION_MIN, DESCRIPCION_MAX),
                 severidad, EstadoHallazgo.ABIERTO, null, null, null,
                 momento, momento, null, null);
+        nuevo.cambiosPendientes.add(new CambioEstado(nuevo.id, null, EstadoHallazgo.ABIERTO, momento,
+                "Hallazgo registrado con severidad " + severidad));
+        return nuevo;
     }
 
     /** Rehidrata un hallazgo ya persistido sin volver a ejecutar las reglas de creación. */
@@ -94,7 +102,8 @@ public final class HallazgoAuditoria {
         Instant momento = requerirInstante(ahora);
         validarPlazo(plan, momento);
         this.planRemediacion = plan;
-        aplicarEstado(EstadoHallazgo.EN_REMEDIACION, momento);
+        aplicarEstado(EstadoHallazgo.EN_REMEDIACION, momento, String.format(
+                "Plan de %s para el %s: %s", plan.responsable(), plan.fechaCompromiso(), plan.accion()));
     }
 
     /** EN_REMEDIACION → EN_VERIFICACION. Exige evidencia de que la corrección se ejecutó. */
@@ -102,15 +111,15 @@ public final class HallazgoAuditoria {
         estado.validarTransicionA(EstadoHallazgo.EN_VERIFICACION);
         String evidenciaLimpia = Texto.requerir(evidencia, "evidencia", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
         this.evidenciaRemediacion = evidenciaLimpia;
-        aplicarEstado(EstadoHallazgo.EN_VERIFICACION, requerirInstante(ahora));
+        aplicarEstado(EstadoHallazgo.EN_VERIFICACION, requerirInstante(ahora), evidenciaLimpia);
     }
 
     /** EN_VERIFICACION → EN_REMEDIACION. La verificación falló: se descarta la evidencia y se corrige de nuevo. */
     public void rechazarVerificacion(String motivo, Instant ahora) {
         estado.validarTransicionA(EstadoHallazgo.EN_REMEDIACION);
-        Texto.requerir(motivo, "motivo", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
+        String motivoLimpio = Texto.requerir(motivo, "motivo", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
         this.evidenciaRemediacion = null;
-        aplicarEstado(EstadoHallazgo.EN_REMEDIACION, requerirInstante(ahora));
+        aplicarEstado(EstadoHallazgo.EN_REMEDIACION, requerirInstante(ahora), "Verificación rechazada: " + motivoLimpio);
     }
 
     /** EN_VERIFICACION → CERRADO. Registra el comentario de cierre y el tiempo total empleado. */
@@ -121,7 +130,7 @@ public final class HallazgoAuditoria {
         this.comentarioCierre = comentarioLimpio;
         this.fechaCierre = momento;
         this.horasHastaCierre = Math.max(0L, Duration.between(fechaRegistro, momento).toHours());
-        aplicarEstado(EstadoHallazgo.CERRADO, momento);
+        aplicarEstado(EstadoHallazgo.CERRADO, momento, comentarioLimpio);
     }
 
     private void validarPlazo(PlanRemediacion plan, Instant ahora) {
@@ -138,7 +147,15 @@ public final class HallazgoAuditoria {
         }
     }
 
-    private void aplicarEstado(EstadoHallazgo nuevo, Instant momento) {
+    /** Entrega y vacía los cambios de estado pendientes de registrar en la bitácora. */
+    public List<CambioEstado> extraerCambiosPendientes() {
+        List<CambioEstado> cambios = List.copyOf(cambiosPendientes);
+        cambiosPendientes.clear();
+        return cambios;
+    }
+
+    private void aplicarEstado(EstadoHallazgo nuevo, Instant momento, String detalle) {
+        cambiosPendientes.add(new CambioEstado(id, estado, nuevo, momento, detalle));
         this.estado = nuevo;
         this.fechaActualizacion = momento;
     }

@@ -4,6 +4,7 @@ import com.rincon.auditoria.domain.exception.HallazgoNoEncontradoException;
 import com.rincon.auditoria.domain.model.HallazgoAuditoria;
 import com.rincon.auditoria.usecase.port.in.RechazarVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.out.HallazgoRepositoryPort;
+import com.rincon.auditoria.usecase.port.out.HistorialAuditoriaPort;
 import com.rincon.auditoria.usecase.port.out.UnidadDeTrabajoPort;
 import java.time.Clock;
 import java.time.Instant;
@@ -11,11 +12,14 @@ import java.time.Instant;
 public class RechazarVerificacionService implements RechazarVerificacionUseCase {
 
     private final HallazgoRepositoryPort repositorio;
+    private final HistorialAuditoriaPort historial;
     private final UnidadDeTrabajoPort unidadDeTrabajo;
     private final Clock reloj;
 
-    public RechazarVerificacionService(HallazgoRepositoryPort repositorio, UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
+    public RechazarVerificacionService(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
+            UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
         this.repositorio = repositorio;
+        this.historial = historial;
         this.unidadDeTrabajo = unidadDeTrabajo;
         this.reloj = reloj;
     }
@@ -27,6 +31,7 @@ public class RechazarVerificacionService implements RechazarVerificacionUseCase 
             HallazgoAuditoria hallazgo = repositorio.buscarPorId(comando.id())
                     .orElseThrow(() -> new HallazgoNoEncontradoException(comando.id()));
             hallazgo.rechazarVerificacion(comando.motivo(), Instant.now(reloj));
+            historial.registrar(hallazgo.extraerCambiosPendientes());
             return repositorio.guardar(hallazgo);
         });
     }

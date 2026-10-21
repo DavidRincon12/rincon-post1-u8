@@ -2,14 +2,17 @@ package com.rincon.auditoria.infrastructure.config;
 
 import com.rincon.auditoria.usecase.port.in.CerrarHallazgoUseCase;
 import com.rincon.auditoria.usecase.port.in.ConsultarHallazgosUseCase;
+import com.rincon.auditoria.usecase.port.in.ConsultarHistorialUseCase;
 import com.rincon.auditoria.usecase.port.in.EnviarAVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.IniciarRemediacionUseCase;
 import com.rincon.auditoria.usecase.port.in.RechazarVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.RegistrarHallazgoUseCase;
 import com.rincon.auditoria.usecase.port.out.HallazgoRepositoryPort;
+import com.rincon.auditoria.usecase.port.out.HistorialAuditoriaPort;
 import com.rincon.auditoria.usecase.port.out.UnidadDeTrabajoPort;
 import com.rincon.auditoria.usecase.service.CerrarHallazgoService;
 import com.rincon.auditoria.usecase.service.ConsultarHallazgosService;
+import com.rincon.auditoria.usecase.service.ConsultarHistorialService;
 import com.rincon.auditoria.usecase.service.EnviarAVerificacionService;
 import com.rincon.auditoria.usecase.service.IniciarRemediacionService;
 import com.rincon.auditoria.usecase.service.RechazarVerificacionService;
@@ -45,37 +48,43 @@ public class AuditoriaConfiguration {
     }
 
     @Bean
-    public RegistrarHallazgoUseCase registrarHallazgoUseCase(HallazgoRepositoryPort repositorio,
+    public RegistrarHallazgoUseCase registrarHallazgoUseCase(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
                                                              UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
-        return new RegistrarHallazgoService(repositorio, unidadDeTrabajo, reloj);
+        return new RegistrarHallazgoService(repositorio, historial, unidadDeTrabajo, reloj);
     }
 
     @Bean
-    public IniciarRemediacionUseCase iniciarRemediacionUseCase(HallazgoRepositoryPort repositorio,
+    public IniciarRemediacionUseCase iniciarRemediacionUseCase(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
                                                                UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
-        return new IniciarRemediacionService(repositorio, unidadDeTrabajo, reloj);
+        return new IniciarRemediacionService(repositorio, historial, unidadDeTrabajo, reloj);
     }
 
     @Bean
-    public EnviarAVerificacionUseCase enviarAVerificacionUseCase(HallazgoRepositoryPort repositorio,
+    public EnviarAVerificacionUseCase enviarAVerificacionUseCase(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
                                                                  UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
-        return new EnviarAVerificacionService(repositorio, unidadDeTrabajo, reloj);
+        return new EnviarAVerificacionService(repositorio, historial, unidadDeTrabajo, reloj);
     }
 
     @Bean
-    public RechazarVerificacionUseCase rechazarVerificacionUseCase(HallazgoRepositoryPort repositorio,
+    public RechazarVerificacionUseCase rechazarVerificacionUseCase(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
                                                                    UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
-        return new RechazarVerificacionService(repositorio, unidadDeTrabajo, reloj);
+        return new RechazarVerificacionService(repositorio, historial, unidadDeTrabajo, reloj);
     }
 
     @Bean
-    public CerrarHallazgoUseCase cerrarHallazgoUseCase(HallazgoRepositoryPort repositorio,
+    public CerrarHallazgoUseCase cerrarHallazgoUseCase(HallazgoRepositoryPort repositorio, HistorialAuditoriaPort historial,
                                                        UnidadDeTrabajoPort unidadDeTrabajo, Clock reloj) {
-        return new CerrarHallazgoService(repositorio, unidadDeTrabajo, reloj);
+        return new CerrarHallazgoService(repositorio, historial, unidadDeTrabajo, reloj);
     }
 
     @Bean
     public ConsultarHallazgosUseCase consultarHallazgosUseCase(HallazgoRepositoryPort repositorio) {
         return new ConsultarHallazgosService(repositorio);
+    }
+
+    @Bean
+    public ConsultarHistorialUseCase consultarHistorialUseCase(HallazgoRepositoryPort repositorio,
+                                                               HistorialAuditoriaPort historial) {
+        return new ConsultarHistorialService(repositorio, historial);
     }
 }
