@@ -5,6 +5,7 @@ import com.rincon.auditoria.usecase.port.in.ConsultarHallazgosUseCase;
 import com.rincon.auditoria.usecase.port.in.ConsultarHistorialUseCase;
 import com.rincon.auditoria.usecase.port.in.EnviarAVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.IniciarRemediacionUseCase;
+import com.rincon.auditoria.usecase.port.in.ObtenerDashboardAuditoriaUseCase;
 import com.rincon.auditoria.usecase.port.in.RechazarVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.RegistrarHallazgoUseCase;
 import com.rincon.auditoria.usecase.port.out.HallazgoRepositoryPort;
@@ -15,6 +16,7 @@ import com.rincon.auditoria.usecase.service.ConsultarHallazgosService;
 import com.rincon.auditoria.usecase.service.ConsultarHistorialService;
 import com.rincon.auditoria.usecase.service.EnviarAVerificacionService;
 import com.rincon.auditoria.usecase.service.IniciarRemediacionService;
+import com.rincon.auditoria.usecase.service.ObtenerDashboardAuditoriaService;
 import com.rincon.auditoria.usecase.service.RechazarVerificacionService;
 import com.rincon.auditoria.usecase.service.RegistrarHallazgoService;
 import java.time.Clock;
@@ -86,5 +88,10 @@ public class AuditoriaConfiguration {
     public ConsultarHistorialUseCase consultarHistorialUseCase(HallazgoRepositoryPort repositorio,
                                                                HistorialAuditoriaPort historial) {
         return new ConsultarHistorialService(repositorio, historial);
+    }
+
+    @Bean
+    public ObtenerDashboardAuditoriaUseCase obtenerDashboardAuditoriaUseCase(HallazgoRepositoryPort repositorio) {
+        return new ObtenerDashboardAuditoriaService(repositorio);
     }
 }

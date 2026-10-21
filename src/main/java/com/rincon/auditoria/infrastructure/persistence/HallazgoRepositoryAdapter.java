@@ -4,6 +4,9 @@ import com.rincon.auditoria.domain.model.EstadoHallazgo;
 import com.rincon.auditoria.domain.model.HallazgoAuditoria;
 import com.rincon.auditoria.domain.model.HallazgoId;
 import com.rincon.auditoria.domain.model.PlanRemediacion;
+import com.rincon.auditoria.usecase.dto.ConteoPorEstado;
+import com.rincon.auditoria.usecase.dto.ConteoPorSeveridad;
+import com.rincon.auditoria.usecase.dto.TiempoPromedioCierre;
 import com.rincon.auditoria.usecase.port.out.HallazgoRepositoryPort;
 import java.util.List;
 import java.util.Optional;
@@ -46,6 +49,27 @@ class HallazgoRepositoryAdapter implements HallazgoRepositoryPort {
     public List<HallazgoAuditoria> buscarPorEstado(EstadoHallazgo estado) {
         return jpa.findByEstadoOrderByFechaRegistroDesc(estado).stream()
                 .map(HallazgoRepositoryAdapter::aDominio).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConteoPorEstado> contarPorEstado() {
+        return jpa.contarPorEstado().stream()
+                .map(p -> new ConteoPorEstado(p.getEstado(), p.getTotal())).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConteoPorSeveridad> contarPorSeveridad() {
+        return jpa.contarPorSeveridad().stream()
+                .map(p -> new ConteoPorSeveridad(p.getSeveridad(), p.getTotal())).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TiempoPromedioCierre> promedioHorasCierrePorSeveridad() {
+        return jpa.promedioHorasCierrePorSeveridad().stream()
+                .map(p -> new TiempoPromedioCierre(p.getSeveridad(), p.getPromedioHoras(), p.getCerrados())).toList();
     }
 
     private static void copiarAEntidad(HallazgoAuditoria origen, HallazgoJpaEntity destino) {
