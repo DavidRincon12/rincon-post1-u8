@@ -3,7 +3,9 @@ package com.rincon.auditoria.infrastructure.web;
 import com.rincon.auditoria.domain.model.EstadoHallazgo;
 import com.rincon.auditoria.domain.model.HallazgoAuditoria;
 import com.rincon.auditoria.domain.model.HallazgoId;
+import com.rincon.auditoria.infrastructure.web.dto.CambioEstadoResponse;
 import com.rincon.auditoria.infrastructure.web.dto.CerrarHallazgoRequest;
+import com.rincon.auditoria.infrastructure.web.dto.DashboardResponse;
 import com.rincon.auditoria.infrastructure.web.dto.EnviarVerificacionRequest;
 import com.rincon.auditoria.infrastructure.web.dto.HallazgoResponse;
 import com.rincon.auditoria.infrastructure.web.dto.IniciarRemediacionRequest;
@@ -11,8 +13,10 @@ import com.rincon.auditoria.infrastructure.web.dto.RechazarVerificacionRequest;
 import com.rincon.auditoria.infrastructure.web.dto.RegistrarHallazgoRequest;
 import com.rincon.auditoria.usecase.port.in.CerrarHallazgoUseCase;
 import com.rincon.auditoria.usecase.port.in.ConsultarHallazgosUseCase;
+import com.rincon.auditoria.usecase.port.in.ConsultarHistorialUseCase;
 import com.rincon.auditoria.usecase.port.in.EnviarAVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.IniciarRemediacionUseCase;
+import com.rincon.auditoria.usecase.port.in.ObtenerDashboardAuditoriaUseCase;
 import com.rincon.auditoria.usecase.port.in.RechazarVerificacionUseCase;
 import com.rincon.auditoria.usecase.port.in.RegistrarHallazgoUseCase;
 import jakarta.validation.Valid;
@@ -39,19 +43,25 @@ public class HallazgoController {
     private final RechazarVerificacionUseCase rechazarVerificacion;
     private final CerrarHallazgoUseCase cerrar;
     private final ConsultarHallazgosUseCase consultar;
+    private final ConsultarHistorialUseCase consultarHistorial;
+    private final ObtenerDashboardAuditoriaUseCase obtenerDashboard;
 
     public HallazgoController(RegistrarHallazgoUseCase registrar,
                               IniciarRemediacionUseCase iniciarRemediacion,
                               EnviarAVerificacionUseCase enviarAVerificacion,
                               RechazarVerificacionUseCase rechazarVerificacion,
                               CerrarHallazgoUseCase cerrar,
-                              ConsultarHallazgosUseCase consultar) {
+                              ConsultarHallazgosUseCase consultar,
+                              ConsultarHistorialUseCase consultarHistorial,
+                              ObtenerDashboardAuditoriaUseCase obtenerDashboard) {
         this.registrar = registrar;
         this.iniciarRemediacion = iniciarRemediacion;
         this.enviarAVerificacion = enviarAVerificacion;
         this.rechazarVerificacion = rechazarVerificacion;
         this.cerrar = cerrar;
         this.consultar = consultar;
+        this.consultarHistorial = consultarHistorial;
+        this.obtenerDashboard = obtenerDashboard;
     }
 
     @PostMapping
@@ -69,9 +79,21 @@ public class HallazgoController {
         return resultado.stream().map(HallazgoResponse::desde).toList();
     }
 
+    /** Ruta literal: Spring la resuelve antes que "/{id}", por lo que "dashboard" nunca se toma como identificador. */
+    @GetMapping("/dashboard")
+    public DashboardResponse dashboard() {
+        return DashboardResponse.desde(obtenerDashboard.ejecutar());
+    }
+
     @GetMapping("/{id}")
     public HallazgoResponse obtener(@PathVariable String id) {
         return HallazgoResponse.desde(consultar.obtenerPorId(HallazgoId.de(id)));
+    }
+
+    @GetMapping("/{id}/historial")
+    public List<CambioEstadoResponse> historial(@PathVariable String id) {
+        return consultarHistorial.obtenerHistorial(HallazgoId.de(id)).stream()
+                .map(CambioEstadoResponse::desde).toList();
     }
 
     @PostMapping("/{id}/remediacion")

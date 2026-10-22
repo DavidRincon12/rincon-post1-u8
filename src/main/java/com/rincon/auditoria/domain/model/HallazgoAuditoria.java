@@ -2,6 +2,7 @@ package com.rincon.auditoria.domain.model;
 
 import com.rincon.auditoria.domain.exception.DatosInvalidosException;
 import com.rincon.auditoria.domain.exception.PlanRemediacionInvalidoException;
+import com.rincon.auditoria.domain.exception.TransicionInvalidaException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -95,7 +96,7 @@ public final class HallazgoAuditoria {
 
     /** ABIERTO → EN_REMEDIACION. El plan debe comprometer una fecha dentro del SLA de la severidad. */
     public void iniciarRemediacion(PlanRemediacion plan, Instant ahora) {
-        estado.validarTransicionA(EstadoHallazgo.EN_REMEDIACION);
+        exigirTransicion(EstadoHallazgo.ABIERTO, EstadoHallazgo.EN_REMEDIACION);
         if (plan == null) {
             throw new DatosInvalidosException("El plan de remediación es obligatorio");
         }
@@ -108,7 +109,7 @@ public final class HallazgoAuditoria {
 
     /** EN_REMEDIACION → EN_VERIFICACION. Exige evidencia de que la corrección se ejecutó. */
     public void enviarAVerificacion(String evidencia, Instant ahora) {
-        estado.validarTransicionA(EstadoHallazgo.EN_VERIFICACION);
+        exigirTransicion(EstadoHallazgo.EN_REMEDIACION, EstadoHallazgo.EN_VERIFICACION);
         String evidenciaLimpia = Texto.requerir(evidencia, "evidencia", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
         this.evidenciaRemediacion = evidenciaLimpia;
         aplicarEstado(EstadoHallazgo.EN_VERIFICACION, requerirInstante(ahora), evidenciaLimpia);
@@ -116,7 +117,7 @@ public final class HallazgoAuditoria {
 
     /** EN_VERIFICACION → EN_REMEDIACION. La verificación falló: se descarta la evidencia y se corrige de nuevo. */
     public void rechazarVerificacion(String motivo, Instant ahora) {
-        estado.validarTransicionA(EstadoHallazgo.EN_REMEDIACION);
+        exigirTransicion(EstadoHallazgo.EN_VERIFICACION, EstadoHallazgo.EN_REMEDIACION);
         String motivoLimpio = Texto.requerir(motivo, "motivo", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
         this.evidenciaRemediacion = null;
         aplicarEstado(EstadoHallazgo.EN_REMEDIACION, requerirInstante(ahora), "Verificación rechazada: " + motivoLimpio);
@@ -124,13 +125,25 @@ public final class HallazgoAuditoria {
 
     /** EN_VERIFICACION → CERRADO. Registra el comentario de cierre y el tiempo total empleado. */
     public void cerrar(String comentario, Instant ahora) {
-        estado.validarTransicionA(EstadoHallazgo.CERRADO);
+        exigirTransicion(EstadoHallazgo.EN_VERIFICACION, EstadoHallazgo.CERRADO);
         String comentarioLimpio = Texto.requerir(comentario, "comentarioCierre", TEXTO_CIERRE_MIN, TEXTO_CIERRE_MAX);
         Instant momento = requerirInstante(ahora);
         this.comentarioCierre = comentarioLimpio;
         this.fechaCierre = momento;
         this.horasHastaCierre = Math.max(0L, Duration.between(fechaRegistro, momento).toHours());
         aplicarEstado(EstadoHallazgo.CERRADO, momento, comentarioLimpio);
+    }
+
+    /**
+     * Cada operación de negocio parte de un único estado. Validar solo contra la tabla no basta:
+     * EN_REMEDIACION es destino válido tanto desde ABIERTO como desde EN_VERIFICACION, pero
+     * "iniciar remediación" y "rechazar verificación" son operaciones distintas.
+     */
+    private void exigirTransicion(EstadoHallazgo origenEsperado, EstadoHallazgo destino) {
+        if (estado != origenEsperado) {
+            throw new TransicionInvalidaException(estado, destino);
+        }
+        estado.validarTransicionA(destino);
     }
 
     private void validarPlazo(PlanRemediacion plan, Instant ahora) {
